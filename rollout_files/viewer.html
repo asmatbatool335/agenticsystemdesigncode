@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rollout Viewer - Sequential Display</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .controls {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e9ecef;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .current-rollout {
+            font-size: 18px;
+            font-weight: 600;
+            color: #495057;
+            flex: 1;
+            text-align: center;
+        }
+        
+        .rollout-info {
+            background: #e9ecef;
+            padding: 15px 30px;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .rollout-info h2 {
+            color: #495057;
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+        
+        .rollout-info .meta {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        
+        .viewer-container {
+            position: relative;
+            width: 100%;
+            height: 80vh;
+            min-height: 600px;
+            background: #000;
+        }
+        
+        .viewer-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            text-align: center;
+        }
+        
+        .loading::after {
+            content: '';
+            display: block;
+            width: 50px;
+            height: 50px;
+            margin: 20px auto;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .progress-bar {
+            background: #e9ecef;
+            height: 6px;
+            margin-top: 20px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        
+        .thumbnail-list {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .thumbnail-list h3 {
+            margin-bottom: 15px;
+            color: #495057;
+        }
+        
+        .thumbnail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        
+        .thumbnail-item {
+            padding: 10px;
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .thumbnail-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .thumbnail-item.active {
+            border-color: #667eea;
+            background: #e7f3ff;
+        }
+        
+        .thumbnail-item .label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .thumbnail-item .path {
+            font-size: 0.85em;
+            color: #6c757d;
+            word-break: break-all;
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+            }
+            
+            .nav-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            button {
+                flex: 1;
+            }
+            
+            .viewer-container {
+                height: 60vh;
+                min-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Rollout Viewer</h1>
+            <p>Sequential Display of All Rollouts</p>
+        </div>
+        
+        <div class="controls">
+            <div class="nav-buttons">
+                <button class="btn-secondary" onclick="goToFirst()" id="btn-first">⏮ First</button>
+                <button class="btn-secondary" onclick="goToPrevious()" id="btn-prev">◀ Previous</button>
+                <button class="btn-primary" onclick="toggleAutoPlay()" id="btn-autoplay">▶ Auto-Play</button>
+                <button class="btn-secondary" onclick="goToNext()" id="btn-next">Next ▶</button>
+                <button class="btn-secondary" onclick="goToLast()" id="btn-last">Last ⏭</button>
+            </div>
+            <div class="current-rollout" id="current-rollout">
+                Loading...
+            </div>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        
+        <div class="rollout-info" id="rollout-info">
+            <h2 id="rollout-title">Loading...</h2>
+            <div class="meta" id="rollout-meta">Preparing viewer...</div>
+        </div>
+        
+        <div class="viewer-container">
+            <div class="loading" id="loading">Loading rollout...</div>
+            <iframe id="rollout-frame" style="display: none;"></iframe>
+        </div>
+        
+        <div class="thumbnail-list">
+            <h3>All Rollouts (Click to Jump)</h3>
+            <div class="thumbnail-grid" id="thumbnail-grid"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Rollout data
+        const rollouts = [
+  {
+    "label": "Baseline (Untrained)",
+    "path": "rollout_baseline.html",
+    "iteration": 0,
+    "candidate": 0
+  },
+  {
+    "label": "Iteration 1, Candidate 1 (Score: -91.41)",
+    "path": "iteration_001/candidate_01/rollout.html",
+    "iteration": 1,
+    "candidate": 1
+  },
+  {
+    "label": "Iteration 1, Candidate 2 (Score: 296.11)",
+    "path": "iteration_001/candidate_02/rollout.html",
+    "iteration": 1,
+    "candidate": 2
+  },
+  {
+    "label": "Iteration 2, Candidate 1 (Score: 16.34)",
+    "path": "iteration_002/candidate_01/rollout.html",
+    "iteration": 2,
+    "candidate": 1
+  },
+  {
+    "label": "Iteration 2, Candidate 2 (Score: -134.02)",
+    "path": "iteration_002/candidate_02/rollout.html",
+    "iteration": 2,
+    "candidate": 2
+  },
+  {
+    "label": "Iteration 3, Candidate 1 (Score: 19.61)",
+    "path": "iteration_003/candidate_01/rollout.html",
+    "iteration": 3,
+    "candidate": 1
+  }
+];
+        
+        // State
+        let currentIndex = 0;
+        let autoPlayInterval = null;
+        let autoPlayDelay = 5000; // 5 seconds per rollout
+        
+        // Initialize
+        function init() {
+            if (rollouts.length === 0) {
+                document.getElementById('current-rollout').textContent = 'No rollouts found';
+                document.getElementById('rollout-title').textContent = 'No Rollouts';
+                document.getElementById('rollout-meta').textContent = 'No rollout HTML files were found in this directory.';
+                return;
+            }
+            
+            // Create thumbnail grid
+            const grid = document.getElementById('thumbnail-grid');
+            rollouts.forEach((rollout, index) => {
+                const item = document.createElement('div');
+                item.className = 'thumbnail-item';
+                item.onclick = () => goToIndex(index);
+                item.innerHTML = `
+                    <div class="label">${rollout.label}</div>
+                    <div class="path">${rollout.path}</div>
+                `;
+                grid.appendChild(item);
+            });
+            
+            // Load first rollout
+            loadRollout(0);
+        }
+        
+        // Load a specific rollout
+        function loadRollout(index) {
+            if (index < 0 || index >= rollouts.length) return;
+            
+            currentIndex = index;
+            const rollout = rollouts[index];
+            
+            // Update UI
+            document.getElementById('current-rollout').textContent = 
+                `${index + 1} / ${rollouts.length}: ${rollout.label}`;
+            
+            document.getElementById('rollout-title').textContent = rollout.label;
+            document.getElementById('rollout-meta').textContent = 
+                `Iteration: ${rollout.iteration}, Candidate: ${rollout.candidate} | Path: ${rollout.path}`;
+            
+            // Update progress bar
+            const progress = ((index + 1) / rollouts.length) * 100;
+            document.getElementById('progress-fill').style.width = progress + '%';
+            
+            // Update button states
+            document.getElementById('btn-first').disabled = index === 0;
+            document.getElementById('btn-prev').disabled = index === 0;
+            document.getElementById('btn-next').disabled = index === rollouts.length - 1;
+            document.getElementById('btn-last').disabled = index === rollouts.length - 1;
+            
+            // Update thumbnail active state
+            document.querySelectorAll('.thumbnail-item').forEach((item, i) => {
+                if (i === index) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+            
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('rollout-frame').style.display = 'none';
+            
+            // Load iframe
+            const iframe = document.getElementById('rollout-frame');
+            iframe.src = rollout.path;
+            
+            // Hide loading when iframe loads
+            iframe.onload = function() {
+                document.getElementById('loading').style.display = 'none';
+                iframe.style.display = 'block';
+            };
+        }
+        
+        // Navigation functions
+        function goToFirst() {
+            loadRollout(0);
+        }
+        
+        function goToPrevious() {
+            if (currentIndex > 0) {
+                loadRollout(currentIndex - 1);
+            }
+        }
+        
+        function goToNext() {
+            if (currentIndex < rollouts.length - 1) {
+                loadRollout(currentIndex + 1);
+            }
+        }
+        
+        function goToLast() {
+            loadRollout(rollouts.length - 1);
+        }
+        
+        function goToIndex(index) {
+            loadRollout(index);
+        }
+        
+        // Auto-play functionality
+        function toggleAutoPlay() {
+            if (autoPlayInterval) {
+                // Stop auto-play
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+                document.getElementById('btn-autoplay').textContent = '▶ Auto-Play';
+                document.getElementById('btn-autoplay').className = 'btn-primary';
+            } else {
+                // Start auto-play
+                autoPlayInterval = setInterval(() => {
+                    if (currentIndex < rollouts.length - 1) {
+                        goToNext();
+                    } else {
+                        // Loop back to start
+                        goToFirst();
+                    }
+                }, autoPlayDelay);
+                document.getElementById('btn-autoplay').textContent = '⏸ Pause';
+                document.getElementById('btn-autoplay').className = 'btn-danger';
+            }
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                goToPrevious();
+            } else if (e.key === 'ArrowRight') {
+                goToNext();
+            } else if (e.key === 'Home') {
+                goToFirst();
+            } else if (e.key === 'End') {
+                goToLast();
+            } else if (e.key === ' ' || e.key === 'Spacebar') {
+                e.preventDefault();
+                toggleAutoPlay();
+            }
+        });
+        
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
