@@ -1,4 +1,0 @@
-{
-  "module": "brax.envs.wrappers.training",
-  "env_name": "halfcheetah"
-}
